@@ -44,13 +44,28 @@ def _undo_predictor(buf, tw, th, predictor, dt):
     raise ValueError(f"unsupported predictor {predictor}")
 
 
+def _entry(d, bo, e, vo, fsz, widths):
+    """One IFD entry -> (tag, tuple of values). Values that don't fit in the
+    entry's value field live at an offset - the case a single-tile reader never
+    hits, because one tile means count 1 means inline."""
+    tag, typ = struct.unpack(bo + 'HH', d[e:e + 4])
+    count, = struct.unpack(bo + ('I' if fsz == 4 else 'Q'), d[e + 4:e + vo])
+    w = widths.get(typ)
+    if not w: return tag, None
+    sz = struct.calcsize(w)
+    base = e + vo
+    if count * sz > fsz:
+        base, = struct.unpack(bo + ('I' if fsz == 4 else 'Q'), d[base:base + fsz])
+    return tag, struct.unpack(bo + w * count, d[base:base + sz * count])
+
+
 def read_tifxyz_plane(path):
     """One plane of a tifxyz mesh.
 
     Most published meshes are classic TIFF, uncompressed, single strip - the
-    whole reader for those is two lines. A few are BigTIFF, tiled, LZW with the
-    floating-point predictor, so those paths exist too; a classic-only reader
-    fails on them with a struct error that names nothing.
+    whole reader for those is two lines. A few are BigTIFF, tiled (one tile or
+    many), LZW with the floating-point predictor, so those paths exist too; a
+    classic-only reader fails on them with a struct error that names nothing.
     """
     d = open(path, 'rb').read()
     bo = '<' if d[:2] == b'II' else '>'
@@ -58,43 +73,47 @@ def read_tifxyz_plane(path):
     if magic == 42:
         off, = struct.unpack(bo + 'I', d[4:8])
         n, = struct.unpack(bo + 'H', d[off:off + 2])
-        ent, esz, vo = off + 2, 12, 8
+        ent, esz, vo, fsz = off + 2, 12, 8, 4
         widths = {1: 'B', 3: 'H', 4: 'I'}
     elif magic == 43:
         offsz, zero = struct.unpack(bo + 'HH', d[4:8])
         assert offsz == 8 and zero == 0, f"odd BigTIFF header in {path}"
         off, = struct.unpack(bo + 'Q', d[8:16])
         n, = struct.unpack(bo + 'Q', d[off:off + 8])
-        ent, esz, vo = off + 8, 8 + 12, 12
+        ent, esz, vo, fsz = off + 8, 8 + 12, 12, 8
         widths = {1: 'B', 3: 'H', 4: 'I', 16: 'Q', 17: 'q'}
     else:
         raise ValueError(f"not a TIFF (magic {magic}): {path}")
 
     t = {}
     for i in range(n):
-        e = ent + i * esz
-        tag, typ = struct.unpack(bo + 'HH', d[e:e + 4])
-        w = widths.get(typ)
-        if w: t[tag] = struct.unpack(bo + w, d[e + vo:e + vo + struct.calcsize(w)])[0]
+        tag, vals = _entry(d, bo, ent + i * esz, vo, fsz, widths)
+        if vals: t[tag] = vals
+    v = lambda tag, dflt=None: t[tag][0] if tag in t else dflt
 
-    w, h = t[256], t[257]
-    assert t[258] == 32 and t[339] == 3, f"expect float32, got bits={t[258]} fmt={t[339]}"
+    w, h = v(256), v(257)
+    assert v(258) == 32 and v(339) == 3, f"expect float32, got bits={v(258)} fmt={v(339)}"
     dt = '<f4' if bo == '<' else '>f4'
-    comp, pred = t[259], t.get(317)
+    comp, pred = v(259), v(317)
+    if comp not in (1, 5): raise ValueError(f"unsupported compression {comp} in {path}")
 
     if 324 in t:                                   # tiled
-        tw, th = t[322], t[323]
-        raw = d[t[324]:t[324] + t[325]]
-        if comp == 5: raw = _lzw(raw, tw * th * 4)
-        elif comp != 1: raise ValueError(f"unsupported compression {comp} in {path}")
-        tile = _undo_predictor(raw, tw, th, pred, dt)
-        assert tw >= w and th >= h, f"{path}: multi-tile images not handled"
-        return np.ascontiguousarray(tile[:h, :w]).astype('<f4')
+        tw, th = v(322), v(323)
+        offs, cnts = t[324], t[325]
+        across = -(-w // tw)
+        # tiles are always full size, padded past the image edge
+        blocks = [(i // across * th, i % across * tw, tw, th) for i in range(len(offs))]
+    else:                                          # strips
+        th, offs, cnts = v(278, h), t[273], t[279]
+        blocks = [(i * th, 0, w, min(th, h - i * th)) for i in range(len(offs))]
 
-    raw = d[t[273]:t[273] + t[279]]
-    if comp == 5: raw = _lzw(raw, w * h * 4)
-    elif comp != 1: raise ValueError(f"unsupported compression {comp} in {path}")
-    return _undo_predictor(raw, w, h, pred, dt).astype('<f4')
+    out = np.zeros((h, w), '<f4')
+    for (y, x, bw, bh), o, c in zip(blocks, offs, cnts):
+        raw = d[o:o + c]
+        if comp == 5: raw = _lzw(raw, bw * bh * 4)
+        blk = _undo_predictor(raw, bw, bh, pred, dt)
+        out[y:y + bh, x:x + bw] = blk[:h - y, :w - x]
+    return out
 
 
 def load(dirpath):
@@ -157,7 +176,45 @@ def _tiff_selfcheck():
     enc = np.diff(planes.astype(np.int64), axis=1, prepend=0).astype(np.uint8).tobytes()
     out = _undo_predictor(enc, 3, 1, 3, ">f4")
     assert np.allclose(out, vals), f"predictor 3 gave {out}"
-    print("tiff self-check ok (LZW table growth, predictor 2 and 3)")
+
+    # a 2x2-tile image: tile offsets/counts are arrays, so the value field holds
+    # a pointer instead of the value - what a single-tile reader silently skips
+    import tempfile, os
+    w, h, tw, th = 20, 18, 16, 16
+    img = np.arange(h * w, dtype="<f4").reshape(h, w)
+    tiles = []
+    for ty in (0, th):
+        for tx in (0, tw):
+            t_ = np.zeros((th, tw), "<f4")
+            sub = img[ty:ty + th, tx:tx + tw]
+            t_[:sub.shape[0], :sub.shape[1]] = sub
+            tiles.append(t_.tobytes())
+    tags = [(256, 4, w), (257, 4, h), (258, 3, 32), (259, 3, 1),
+            (322, 4, tw), (323, 4, th), (324, 4, None), (325, 4, None), (339, 3, 3)]
+    hdr = 8
+    tdata = hdr + 2 + 12 * len(tags) + 4          # IFD then two 4-entry arrays
+    arrs = tdata + sum(len(x) for x in tiles)
+    offs, o = [], tdata
+    for x in tiles: offs.append(o); o += len(x)
+    blob = bytearray(struct.pack("<2sHI", b"II", 42, hdr))
+    blob += struct.pack("<H", len(tags))
+    for tag, typ, val in tags:
+        if val is None:
+            blob += struct.pack("<HHII", tag, typ, 4, arrs + (0 if tag == 324 else 16))
+        else:
+            blob += struct.pack("<HHII", tag, typ, 1, val) if typ == 4 else \
+                    struct.pack("<HHIHH", tag, typ, 1, val, 0)
+    blob += b"\0" * 4                             # next IFD = 0
+    assert len(blob) == tdata, (len(blob), tdata)
+    for x in tiles: blob += x
+    blob += struct.pack("<4I", *offs) + struct.pack("<4I", *[len(x) for x in tiles])
+    p = os.path.join(tempfile.gettempdir(), "segqa-tiled-selfcheck.tif")
+    open(p, "wb").write(bytes(blob))
+    got = read_tifxyz_plane(p)
+    os.unlink(p)
+    assert got.shape == (h, w) and np.array_equal(got, img), \
+        f"multi-tile assembly wrong: {np.abs(got - img).max()} max error"
+    print("tiff self-check ok (LZW table growth, predictor 2 and 3, 2x2 tiles)")
 
 
 if __name__ == "__main__":
