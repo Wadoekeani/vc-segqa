@@ -2,6 +2,8 @@
 
 **Repo:** https://github.com/Wadoekeani/vc-segqa  ·  Python + a browser viewer, no credentials, no bulk download
 
+> [中文版](SUBMISSION.zh-TW.md)
+
 ## The problem
 
 Segmentation quality is checked by eye, one segment at a time. Automating it
@@ -161,9 +163,11 @@ than the 106 MB the 2.4 µm meshes would otherwise need.
 
 ## Notes that may be useful regardless
 
-- `tifxyz` is three uncompressed single-strip float32 TIFFs — a 12-line reader,
-  no TIFF library. Some are BigTIFF (magic 43); a classic-only reader silently
-  skips them.
+- `tifxyz` is three float32 TIFFs. 376 of 380 planes are classic, uncompressed,
+  single strip — two lines to read. The other four are BigTIFF, tiled, LZW with
+  the floating-point predictor, and a classic-only reader fails on them with a
+  struct error that names nothing. Reading those four moved PHerc1447 from
+  52 % to 33 %.
 - The volumes are uncompressed, so one z-plane inside a chunk is a contiguous
   16 KB block. A Range request pulls a full-resolution cross-section for
   ~1.3 MB instead of 162 MB.

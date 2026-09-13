@@ -4,6 +4,8 @@ Automated QA for published `tifxyz` surface meshes. Reads everything straight
 from the Vesuvius Challenge open-data bucket over plain HTTP — no credentials,
 no bulk download, no local copy of a scroll.
 
+> [中文版](README.zh-TW.md) · prize write-up: [SUBMISSION.md](SUBMISSION.md)
+
 ## The idea
 
 Segmentation QA has a bootstrapping problem: to validate a quality metric you
@@ -144,8 +146,26 @@ independently computed, from volumes whose voxel sizes differ by 4×, with no
 physical constant supplied anywhere.
 
 Two pairs were skipped for insufficient overlap (reported, not silently
-dropped). Scroll 1 cannot use this check yet: its segments are named by winding
-*ranges* (`w010-027`), so no adjacent single-winding pairs exist.
+dropped).
+
+### Scroll 1, unrolled
+
+Scroll 1 names its segments by winding *range* (`w010-027`), so it had no
+adjacent pairs. `unroll.py` recovers a per-vertex winding number from the angle
+about the scroll axis, calibrated against the range in the name — and that
+calibration is the validation: **all 58 segments measure an exact integer
+number of turns** (4.0, 3.0, 2.0 …), which a mis-fitted axis could not produce.
+It also showed the naming is inclusive: `w116-117` is two turns, not one.
+
+With windings recovered, `scroll1_switch.py` runs the same comparison: **230
+adjacent pairs across both batches, zero flagged**, ratios 0.68–1.32.
+
+That settles a question about the missing Scroll 1 title, which sits in the
+innermost windings. All three geometric checks pass there — the core *is*
+traced, its segments are 0.00–1.74 % outside the mask (thirteen of twenty-one
+exactly 0.00 %), and the winding topology is sound at w010–w031. The surfaces
+are geometrically healthy, so "no ink was detected there" is not explained by a
+bad segmentation.
 
 ## Viewer
 
@@ -239,19 +259,20 @@ The interior of every published segment is uniformly clean (p95 stretch 1.05 –
 1.11). Kept here as a negative result so the next person does not spend a day
 rediscovering it.
 
-`wrapgap.py` is an unfinished second idea: walk one full turn along a grid row
-and measure the 3D distance to where you land, which should be one sheet
-spacing. On the one segment with enough angular coverage it recovers 294 µm —
-the known papyrus spacing — without being told any physical constant. But
-segments narrower than one full turn cannot be tested this way, so it is
-unvalidated. Recorded, not relied on.
+`wrapgap.py` is a second dead end, also kept. Walk one full turn along a grid
+row and measure the distance to where you land, which should be one sheet
+spacing. Measuring that in 3D is wrong: grid rows slant in z, badly on the
+outer windings, where the landing point is 2194 µm away in height against a
+471 µm radial step — so the 3D number measures the slant. Taking only the
+radial component brings the median to a plausible 212 µm, but the spread within
+a segment is too wide to localise anything. Superseded by `unroll.py`.
 
 ## Limitations
 
-- **Sheet switching needs adjacent windings.** The mask check alone cannot see
-  it; `sheetswitch.py` can, but only where segments carry single winding
-  numbers. Scroll 1 names its segments by winding range, so it is not covered
-  yet.
+- **Sheet switching is detected at whole-winding scale.** A local switch over a
+  small patch is diluted in the median and would be missed.
+- **Check 2 needs overlapping segments**; 8 pairs in total were skipped for
+  insufficient overlap, and those are reported rather than silently dropped.
 - **"Outside the mask" is not always "the tracer was wrong."** The other
   reading is that the mask excludes frayed, detached outer layers that really
   are papyrus. Both matter, but only the first is a bug, and this tool does not
