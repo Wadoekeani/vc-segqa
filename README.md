@@ -161,10 +161,20 @@ python3 export_flags.py scan_plan.json            # all scrolls -> viewer/data/
 cd viewer && python3 -m http.server 8731
 ```
 
-Meshes stream straight from S3 (the bucket is CORS-open); only the per-vertex
-flag files are served locally, so `viewer/` stays under 5 MB and always shows
-current upstream geometry. Runtime state is on `window.__segqa` for poking at
-from the console.
+All 11 scrolls and 295 segments, picked from a dropdown. Meshes stream straight
+from S3 (the bucket is CORS-open); only per-vertex flag files are served
+locally — subsampled to at most 128×128 per segment, so the whole set is 2.2 MB
+rather than the 106 MB the 2.4 µm meshes would otherwise need. Runtime state is
+on `window.__segqa`.
+
+The sidebar also lists the adjacent-winding pairs with their gap ratios. Click
+one and it loads exactly those two windings, coloured by identity:
+
+![sheet switch](viewer-sheetswitch-PHerc0139-w045-w046.png)
+
+PHerc0139 w045 (green) and w046 (orange) should sit one papyrus thickness
+apart. They interpenetrate across the entire surface — the ratio of 0.25 made
+visible.
 
 ## Usage
 

@@ -18,6 +18,14 @@
   #ctl { padding:10px 14px; border-bottom:1px solid #262a30; display:grid; gap:7px; }
   #ctl label { display:flex; align-items:center; gap:7px; cursor:pointer; color:#b6bfcb; }
   #list { flex:1; overflow-y:auto; }
+  .hd { padding:7px 14px 4px; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+        color:#77808d; border-top:1px solid #262a30; background:#15181d; }
+  #pairs { max-height:190px; overflow-y:auto; }
+  .pair { display:flex; gap:8px; padding:4px 14px; cursor:pointer; font-size:11px;
+          font-family:ui-monospace,Menlo,monospace; }
+  .pair:hover { background:#1e222a; }
+  .pair.bad { color:#ff8080; }
+  .pair .r { margin-left:auto; font-variant-numeric:tabular-nums; }
   .seg { display:flex; align-items:center; gap:8px; padding:5px 14px; cursor:pointer;
          border-left:3px solid transparent; }
   .seg:hover { background:#1e222a; }
@@ -42,13 +50,23 @@
     <label><input type="checkbox" id="hideIn"> hide in-scroll vertices</label>
     <div style="display:flex;gap:6px"><button id="all">load all</button>
       <button id="none">clear</button><button id="worst">worst 5</button><button id="fit">fit</button></div>
+    <label>colour by
+      <select id="mode" style="flex:1;background:#232831;color:#dfe3e8;border:1px solid #333a45;border-radius:4px;padding:3px 5px;font:inherit">
+        <option value="mask">mask escape</option>
+        <option value="seg">segment identity</option>
+      </select></label>
   </div>
+  <div id="pairsBox" hidden>
+    <div class="hd">adjacent windings · gap vs median</div>
+    <div id="pairs"></div>
+  </div>
+  <div class="hd">segments</div>
   <div id="list"></div>
 </div>
 <div id="view">
   <div id="hud">
-    <span class="key" style="background:#c8b89a"></span>inside the scroll &nbsp;
-    <span class="key" style="background:#ff4d4d"></span>outside (escaped)<br>
+    <span id="legend"><span class="key" style="background:#c8b89a"></span>inside the scroll &nbsp;
+    <span class="key" style="background:#ff4d4d"></span>outside (escaped)</span><br>
     drag orbit · wheel zoom · right-drag pan
   </div>
 </div>
@@ -104,17 +122,24 @@ async function loadPlane(url) {
 }
 
 const IN = new THREE.Color(0xc8b89a), OUT = new THREE.Color(0xff4d4d);
+// distinct hues for "segment identity" mode, so two surfaces that should sit one
+// sheet apart can be told apart where they overlap
+const IDENT = [0x6ea8fe, 0xffb454, 0x5fd3a6, 0xd08cff, 0xff7a7a, 0x9fe870].map(h => new THREE.Color(h));
+function segColour(r) {
+  return IDENT[[...r.segment].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % IDENT.length];
+}
 
 /* Positions come full-resolution from S3; flags were exported subsampled.
    Walk the source grid with the same stride so the two line up. */
 function buildMesh(pl, flags, r) {
   const { stride: s, sw, sh } = r, W = pl.x.w;
+  const mode = document.getElementById("mode").value, tint = segColour(r);
   const N = sw * sh;
   const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
   for (let j = 0; j < sh; j++) for (let i = 0; i < sw; i++) {
     const src = (j * s) * W + i * s, k = j * sw + i;
     pos[k*3] = pl.x.data[src]; pos[k*3+1] = pl.y.data[src]; pos[k*3+2] = pl.z.data[src];
-    const c = flags[k] === 1 ? OUT : IN;
+    const c = mode === "seg" ? tint : (flags[k] === 1 ? OUT : IN);
     col[k*3] = c.r; col[k*3+1] = c.g; col[k*3+2] = c.b;
   }
   const idx = [];
@@ -143,7 +168,7 @@ function buildMesh(pl, flags, r) {
   return mesh;
 }
 
-let scrolls = [], cur = null, index = null;
+let scrolls = [], cur = null, index = null, pairs = [], windings = {};
 let gen = 0;   // bumped on every scroll change; stale loads check it
 const loaded = new Map();
 const cache = new Map();
@@ -213,7 +238,41 @@ async function rebuild() {
   render();
 }
 
+function renderPairs() {
+  const box = document.getElementById("pairsBox"), el = document.getElementById("pairs");
+  const mine = pairs.filter(p => p.scroll === cur);
+  box.hidden = !mine.length;
+  el.innerHTML = "";
+  for (const p of mine) {
+    const d = document.createElement("div");
+    d.className = "pair" + (p.flag ? " bad" : "");
+    d.innerHTML = `<span>w${String(p.a).padStart(3, "0")}/w${String(p.b).padStart(3, "0")}</span>`
+      + `<span class="r">${p.ratio.toFixed(2)}${p.flag ? "  " + p.flag.split(" ")[0] : ""}</span>`;
+    d.title = p.flag || "gap relative to this scroll's median";
+    d.onclick = () => showPair(p);
+    el.appendChild(d);
+  }
+}
+
+/* Load exactly the two windings of a pair, coloured by identity: if one of them
+   jumped, the two surfaces sit on top of each other instead of one sheet apart. */
+async function showPair(p) {
+  document.getElementById("mode").value = "seg";
+  clearAll();
+  const names = [...(windings[cur]?.[p.a] || []), ...(windings[cur]?.[p.b] || [])];
+  for (const n of names) {
+    const r = index.segments.find(s => s.segment === n);
+    if (r) await toggle(r, true);
+  }
+  fitView(); render();
+}
+
 function render() {
+  document.getElementById("legend").innerHTML =
+    document.getElementById("mode").value === "seg"
+      ? "one colour per segment — adjacent windings should sit one sheet apart, never merge"
+      : '<span class="key" style="background:#c8b89a"></span>inside the scroll &nbsp;'
+        + '<span class="key" style="background:#ff4d4d"></span>outside (escaped)';
   const list = document.getElementById("list");
   const onlyBad = document.getElementById("onlyBad").checked;
   list.innerHTML = "";
@@ -240,6 +299,7 @@ async function selectScroll(name, autoload = true) {
     `<b>${index.scroll}</b> · ${index.segments.length} segments · ${(index.verts/1e6).toFixed(1)}M vertices<br>`
     + `<b>${(index.outside*100).toFixed(2)}%</b> of vertices outside the scroll mask<br>`
     + `sampled at ${index.um} um (L${index.level})`;
+  renderPairs();
   render();
   if (autoload) {
     const byBad = [...index.segments].sort((a, b) => b.outside - a.outside);
@@ -266,6 +326,9 @@ function fail(msg) {
     + "and serve this directory over http (file:// will not work).");
   scrolls = await r.json();
   if (!scrolls.length) return fail("scrolls.json is empty");
+  // optional overlays - the viewer still works without them
+  pairs = await fetch("data/sheetswitch.json").then(x => x.ok ? x.json() : []).catch(() => []);
+  windings = await fetch("data/windings.json").then(x => x.ok ? x.json() : {}).catch(() => ({}));
   scrolls.sort((a, b) => b.outside - a.outside);
   const sel = document.getElementById("scroll");
   sel.innerHTML = scrolls.map(s =>
@@ -283,13 +346,14 @@ function fail(msg) {
   document.getElementById("fit").onclick = fitView;
   document.getElementById("onlyBad").onchange = render;
   document.getElementById("hideIn").onchange = rebuild;
+  document.getElementById("mode").onchange = rebuild;
 
   await selectScroll(sel.value);
 })().catch(e => fail("startup failed: " + e.message));
 
 window.__segqa = { THREE, scene, camera, controls, renderer, loaded, cache,
                    get index() { return index; }, get scrolls() { return scrolls; },
-                   selectScroll, fitView };
+                   get pairs() { return pairs; }, selectScroll, fitView, showPair };
 resize();
 (function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
 </script>

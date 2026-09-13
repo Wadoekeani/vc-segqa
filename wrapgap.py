@@ -1,67 +1,106 @@
-"""Inter-wrap spacing: umbilicus-free sheet-switch detector.
+"""Sheet-switch check inside a single segment, for scrolls whose segments span
+several windings.
 
-Walk one full turn along the grid row. The point you land on must sit on the
-NEXT sheet, one papyrus thickness away. If the tracer switched sheets, that gap
-collapses towards zero (landed on the same sheet) or roughly doubles (skipped one).
+Where segments are named by a single winding, adjacent ones can be compared
+directly (sheetswitch.py). Scroll 1 names its segments by winding *range*
+(w010-027), so no adjacent pair exists - but a segment covering 18 turns
+contains the comparison inside itself: walk one full turn along a grid row and
+you must land one papyrus thickness away, every time.
+
+  gap collapses  -> the trace came back onto the sheet it was already on
+  gap doubles    -> it skipped a wrap
+  gap is steady  -> the winding structure is sound
 """
-import sys, numpy as np, matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from l0 import load
+import os, sys, glob, numpy as np
+from l0 import read_tifxyz_plane
+from coverage import load_seg
+from axis import fit_axis, radius
+from scan import CACHE
 
-def wrap_gaps(P, valid):
+def grid(d):
+    P = np.dstack([read_tifxyz_plane(f"{d}/{a}.tif") for a in "xyz"])
+    v = np.isfinite(P).all(-1) & (P != -1).any(-1) & (P != 0).all(-1)
+    return P, v
+
+def unwrapped_angle(P, valid, zc, cen):
+    """Angle about the scroll axis, unwrapped along the wrapping direction."""
+    cx = np.interp(P[..., 2], zc, cen[:, 0])
+    cy = np.interp(P[..., 2], zc, cen[:, 1])
+    a = np.arctan2(P[..., 1] - cy, P[..., 0] - cx)
+    a = np.where(valid, a, np.nan)
+    # unwrap row by row, skipping invalid cells
+    out = np.full(a.shape, np.nan)
+    for i in range(a.shape[0]):
+        m = np.isfinite(a[i])
+        if m.sum() < 3: continue
+        out[i, m] = np.unwrap(a[i, m])
+    return np.degrees(out)
+
+def wrap_gaps(P, valid, ang, rad):
+    """Radial distance from each vertex to the point one full turn along its row.
+
+    Not the 3D distance: grid rows slant in z, badly so on the outer windings,
+    where the landing point is millimetres away in height and the 3D distance
+    measures that slant instead of the sheet spacing (2627 um vs 471 um radial
+    on w098-100). Only the radial step is the inter-sheet gap.
+    """
     h, w, _ = P.shape
-    xy = P[..., :2]
-    # per-row centre only to define an angle; the gap itself is measured in 3D
-    C = np.full((h, 2), np.nan)
-    for i in range(h):
-        p = xy[i][valid[i]]
-        if len(p) >= 8:
-            A = np.c_[2*p, np.ones(len(p))]
-            C[i] = np.linalg.lstsq(A, (p**2).sum(1), rcond=None)[0][:2]
-    ang = np.degrees(np.unwrap(np.arctan2(xy[..., 1]-C[:, None, 1],
-                                          xy[..., 0]-C[:, None, 0]), axis=1))
     gap = np.full((h, w), np.nan)
     for i in range(h):
-        if not np.isfinite(C[i]).all(): continue
-        a, v = ang[i], valid[i]
-        s = -1 if a[v].argmin() > a[v].argmax() else 1   # winding direction
-        for j in range(w):
-            if not v[j]: continue
-            target = a[j] - s*360.0
-            k = np.where(v)[0]
-            aa = a[k]
-            if target > aa.max() or target < aa.min(): continue
-            j2 = np.interp(target, aa[::s] if s < 0 else aa, k[::s] if s < 0 else k)
-            lo, hi = int(np.floor(j2)), int(np.ceil(j2))
-            if not (v[lo] and v[hi]): continue
-            t = j2 - lo
-            Q = P[i, lo]*(1-t) + P[i, hi]*t
-            gap[i, j] = np.linalg.norm(P[i, j] - Q)
+        a = ang[i]
+        k = np.where(np.isfinite(a))[0]
+        if len(k) < 8: continue
+        aa = a[k]
+        s = 1 if aa[-1] > aa[0] else -1
+        x, y = (aa, k) if s > 0 else (aa[::-1], k[::-1])
+        for j in k:
+            t = a[j] - s * 360.0
+            if t < x[0] or t > x[-1]: continue
+            jf = np.interp(t, x, y)
+            lo, hi = int(np.floor(jf)), int(np.ceil(jf))
+            if not (valid[i, lo] and valid[i, hi]): continue
+            f = jf - lo
+            gap[i, j] = abs(rad[i, j] - (rad[i, lo] * (1 - f) + rad[i, hi] * f))
     return gap
 
-def main(path, out, um):
-    P, valid = load(path)
-    gap = wrap_gaps(P, valid)
-    g = gap[np.isfinite(gap)]
-    if len(g) < 50: print("too few wrap pairs"); return
-    med = np.median(g)
-    print(f"wrap pairs: {len(g)}  ({np.isfinite(gap).mean():.1%} of grid)")
-    print(f"inter-wrap gap: p5={np.percentile(g,5):.1f} p50={med:.1f} "
-          f"p95={np.percentile(g,95):.1f} vx"
-          f"   -> p50 = {med*um:.0f} um")
-    rel = gap/med
-    for name, sel in [("collapsed (<0.4x)", rel < 0.4), ("doubled (>1.7x)", rel > 1.7)]:
-        n = np.nansum(sel)
-        print(f"  {name:20s} {int(n):5d} quads ({n/len(g):.2%})")
-
-    fig, ax = plt.subplots(1, 2, figsize=(11, 5))
-    ax[0].hist(g, bins=80); ax[0].axvline(med, color="r")
-    ax[0].set_xlabel("inter-wrap gap (vx)"); ax[0].set_title("gap distribution")
-    im = ax[1].imshow(rel, cmap="coolwarm", vmin=0, vmax=2,
-                      interpolation="nearest", aspect="auto")
-    ax[1].set_title("gap / median"); fig.colorbar(im, ax=ax[1], shrink=.7)
-    fig.tight_layout(); fig.savefig(out, dpi=110); print("wrote", out)
+def run(scroll, um, pattern="*"):
+    dirs = [d for d in sorted(glob.glob(f"{CACHE}/{scroll}/{pattern}/"))
+            if os.path.exists(f"{d}/x.tif")]
+    allp = np.concatenate([load_seg(d) for d in dirs])
+    zc, cen = fit_axis(allp)
+    print(f"=== {scroll}  {len(dirs)} segments  axis over z "
+          f"{zc.min():.0f}..{zc.max():.0f}  ({um} um/voxel)")
+    print(f"  {'segment':34s} {'cover':>6} {'p10':>6} {'p50':>6} {'p90':>6} "
+          f"{'um':>6} {'lo/med':>7} {'hi/med':>7}")
+    rows = []
+    for d in dirs:
+        n = os.path.basename(d.rstrip("/"))
+        P, v = grid(d)
+        ang = unwrapped_angle(P, v, zc, cen)
+        rad = radius(P.reshape(-1, 3), zc, cen).reshape(P.shape[:2])
+        g = wrap_gaps(P, v, ang, rad)
+        f = g[np.isfinite(g)]
+        if len(f) < 200:
+            print(f"  {n[:34]:34s} {'--':>6}  too few wrap pairs"); continue
+        q = np.percentile(f, [10, 50, 90])
+        cover = np.isfinite(g).sum() / max(v.sum(), 1)
+        lo, hi = q[0] / q[1], q[2] / q[1]
+        flag = ""
+        if lo < 0.30: flag = "  <-- collapses somewhere"
+        elif hi > 2.5: flag = "  <-- doubles somewhere"
+        rows.append(dict(segment=n, cover=float(cover), p50=float(q[1]),
+                         um=float(q[1] * um), lo=float(lo), hi=float(hi), flag=flag.strip(" <-")))
+        print(f"  {n[:34]:34s} {cover:>6.0%} {q[0]:>6.1f} {q[1]:>6.1f} {q[2]:>6.1f} "
+              f"{q[1]*um:>6.0f} {lo:>7.2f} {hi:>7.2f}{flag}")
+    if rows:
+        med = np.median([r["p50"] for r in rows])
+        print(f"  -- median wrap gap {med:.1f} vx = {med*um:.0f} um "
+              f"over {len(rows)} segments")
+    return rows
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], float(sys.argv[3]) if len(sys.argv) > 3 else 45.532)
+    import json
+    plans = {p["scroll"]: p for p in json.load(open("scan_plan.json"))}
+    s = sys.argv[1]
+    rows = run(s, plans[s]["base_um"], sys.argv[2] if len(sys.argv) > 2 else "*")
+    json.dump(rows, open(f"wrapgap_{s}.json", "w"), indent=1)
