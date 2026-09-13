@@ -167,6 +167,96 @@ exactly 0.00 %), and the winding topology is sound at w010–w031. The surfaces
 are geometrically healthy, so "no ink was detected there" is not explained by a
 bad segmentation.
 
+## Cross-resolution agreement: a third check
+
+Scroll 1 now exists at four resolutions, and most segments have been meshed on
+more than one of the volumes. Each fine volume ships a `transform.json` mapping
+its voxels onto the 7.91 µm volume from 2023, so a shared frame is published
+too. That gives a third free expectation, in the same spirit as the first two:
+
+> *two meshes of the same segment, cut on two different volumes, must describe
+> the same sheet.*
+
+No labels, no opinion about what a good mesh looks like — just two independent
+descriptions of one physical surface that have to agree.
+
+`xres.py` measures point-to-**surface** distance: nearest vertex, then the
+distance to a plane fitted through that vertex's 3×3 grid neighbourhood. Nearest
+*vertex* distance does not work here, and the control in `xres.py` says why —
+the grids are ~158 µm apart, so querying a surface with points known to lie on
+it already returns a median of 79 µm. Point-to-surface brings that floor down to
+5.4 µm, which is the measurement's own noise.
+
+`xres_scan.py` over the 55 Scroll 1 segments that exist on both the 45.5 µm and
+the 7.91 µm volume, with `xres_control.py` as the control arm:
+
+| pair | segments | disagreement p50 | = voxels of the coarser volume |
+|---|---|---|---|
+| 45.5 µm vs 7.91 µm | 55 | **46.6 µm** | 1.02 |
+| 2.4 µm vs 7.91 µm | 5 | 3.8 µm | 0.48 |
+| 1.129 µm vs 2.4 µm | 1 | 0.34 µm | 0.14 |
+
+The control arm is what makes the first row readable. Between the fine volumes
+the same comparison, the same transforms and the same code return 3.8 µm and
+0.34 µm — twelve and a hundred times tighter. So the 46.6 µm is not the
+measurement, and not the transform file format. A papyrus sheet is only a few
+45.5 µm voxels thick, and a surface traced at that resolution turns out to be
+uncertain by roughly one of them.
+
+Two structures inside that number:
+
+**The 5753 family is twice as bad as everything else, with no overlap.**
+
+| group | segments | p50 range | median, in 45.5 µm voxels |
+|---|---|---|---|
+| `w`-named | 33 | 33 – 64 µm | 0.97 |
+| everything else (11 from 2023, 2 re-meshes) | 13 | 39 – 61 µm | 0.96 |
+| `5753_*` family | 9 | **82 – 90 µm** | **1.90** |
+
+Nine segments, every one of them worse than all 46 others. That is the kind of
+thing this check is for: it points at a specific batch without anyone having to
+label a single vertex.
+
+**Disagreement rises monotonically outward.** Over the `w`-named segments,
+p50 correlates with winding number at r = 0.86:
+
+| windings | p50 | p90 |
+|---|---|---|
+| w010–w045 | 34 – 44 µm | 86 – 151 µm |
+| w046–w088 | 33 – 42 µm | 93 – 141 µm |
+| w089–w115 | 46 – 52 µm | 160 – 184 µm |
+| w116–w129 | 60 – 64 µm | 180 – 207 µm |
+
+![cross-resolution agreement](xres-agreement.png)
+
+Left: every `w`-named segment, coarse-vs-fine disagreement against winding
+number, with the control arm as the two dotted floors. Right: the same p50 by
+group — the `5753_*` family separates cleanly from everything else.
+
+Three of the ranges were segmented twice (2026-06-23 and 2026-07-01); the two
+batches agree to 2.3, 3.7 and 4.6 µm there, so the level is reproducible and not
+an artefact of one run.
+
+It also matches the mask check, which rises outward on the same data, and the
+agreement is not circular: one check asks whether a vertex is on the object, the
+other asks whether two volumes place the same sheet in the same spot.
+
+**What this does not resolve.** The 45.5 µm side carries two candidate causes
+that this data cannot separate: the coarse volume's own resolution limit, and
+the quality of *its* registration — the 45.5 µm `transform.json` reproduces its
+own landmarks to 45 fixed-frame voxels (≈356 µm) where the 2.4 µm one manages
+1.5 (≈12 µm). A pure misregistration would show up as a local shift, and it does
+not: inside 4 mm blocks the mean signed distance runs ~28 µm against a
+within-block spread of ~77 µm (median over the 11 segments compact enough to
+fill three such blocks), so most of the disagreement is shape, not offset.
+That argues against registration being the whole story without ruling it out.
+
+**No "fraction beyond half a sheet" is reported**, though it would read well.
+Every sheet-spacing number available here is itself a nearest-point distance on
+a ~900 µm grid, carrying a discretisation floor of unknown size; dividing by it
+would launder that uncertainty into a clean-looking percentage. The voxel of the
+coarse volume is a denominator that is actually known.
+
 ## Viewer
 
 ![viewer](viewer-screenshot.png)
@@ -218,15 +308,31 @@ top:
 python3 section.py ~/.cache/segqa/PHercParis4 1 300 2000 3850 sections.png
 ```
 
+Cross-resolution agreement needs the second mesh of each segment plus the
+published transforms:
+
+```bash
+python3 xres_fetch.py 7.91um      # transforms + every 7.91 um mesh (~180 MB)
+python3 xres.py 20230702185753    # one segment at three resolutions, with the control
+python3 xres_scan.py              # all of them -> xres_results.json
+python3 xres_control.py           # control arm: the fine volumes against each other
+python3 xres_plot.py              # -> xres-agreement.png
+```
+
 ## Notes on the data
 
 Things that cost time to discover, in case they save you some:
 
-- **`tifxyz` is nearly trivial to read.** 376 of 380 planes are classic TIFF,
-  uncompressed, single strip — two lines. The other four are BigTIFF, tiled,
-  LZW with the floating-point predictor, which a classic-only reader fails on
-  with a struct error that names nothing. `l0.py` handles both and still has no
-  TIFF dependency.
+- **`tifxyz` is nearly trivial to read — until it isn't.** Of Scroll 1's 254
+  published meshes, 240 are classic TIFF, uncompressed, single strip: two lines
+  of code. The other 14 are BigTIFF, tiled, LZW with the floating-point
+  predictor, and 8 of those are split across 2–12 tiles, which means the tile
+  offsets live in an array the value field only points at. A single-tile reader
+  fails on them with `buffer is smaller than requested size`, naming nothing.
+  Resolution is no guide: 78 of the 81 2.4 µm meshes are plain single strips
+  while 11 of the 55 coarser 7.91 µm ones are tiled (counted on each mesh's
+  `x.tif`, read over HTTP Range — two requests per mesh, no download). `l0.py` handles all of it
+  and still has no TIFF dependency.
 - **Meshes are registered to a specific volume.** The directory name says
   which: `<seg>-on-<volume-id>-<resolution>um.tifxyz`. Sampling a mesh against
   a different volume of the same scroll gives silent garbage.

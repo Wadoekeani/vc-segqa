@@ -82,7 +82,7 @@ interpenetrate across their whole extent:
 
 ![sheet switch](viewer-sheetswitch-PHerc0139-w045-w046.png)
 
-### The two checks are independent, and that is the point
+### Checks 1 and 2 are independent, and that is the point
 
 PHerc1667 is the **worst** scroll by mask escape (19 %) yet is perfectly clean
 here, with the tightest ratio range of the three — its problem is drifting off
@@ -91,6 +91,61 @@ the object at the outer edge, not confusing sheets. PHerc0139 is among the
 
 A scroll can look flawless under one check while the real defect is visible
 only to the other. Neither is sufficient alone.
+
+## Check 3 — do two volumes agree about where the sheet is?
+
+Scroll 1 now exists at four resolutions, and each fine volume publishes a
+`transform.json` mapping its voxels onto the 7.91 µm volume from 2023. So most
+segments have been meshed twice, and a shared frame is published too. A third
+expectation follows, as free as the first two:
+
+> two meshes of the same segment, cut on two different volumes, must describe
+> the same sheet.
+
+`xres.py` measures point-to-surface distance — nearest vertex, then the distance
+to a plane fitted through its 3×3 grid neighbourhood. Point-to-*vertex* would
+not do: the grids are ~158 µm apart, so querying a surface with points known to
+lie on it already returns a median of 79 µm. Point-to-surface drops that floor
+to 5.4 µm.
+
+Across the 55 Scroll 1 segments meshed on both the 45.5 µm and the 7.91 µm
+volume:
+
+| pair | segments | disagreement p50 | = voxels of the coarser volume |
+|---|---|---|---|
+| 45.5 µm vs 7.91 µm | 55 | **46.6 µm** | 1.02 |
+| 2.4 µm vs 7.91 µm | 5 | 3.8 µm | 0.48 |
+| 1.129 µm vs 2.4 µm | 1 | 0.34 µm | 0.14 |
+
+The lower two rows are the control arm, and they are what make the top row
+readable: same comparison, same transforms, same code, twelve and a hundred
+times tighter. The 46.6 µm is therefore not the method and not the transform
+format — a surface traced at 45.5 µm is uncertain by about one voxel of that
+volume.
+
+![cross-resolution agreement](xres-agreement.png)
+
+Two structures inside it. **Nine `5753_*` segments sit at 82–90 µm while the
+other 46 sit at 33–64 µm** — no overlap, a whole batch flagged without anyone
+labelling a vertex. And **disagreement rises outward**, p50 against winding
+number at r = 0.86, from ~35 µm at w010–w045 to ~62 µm at w116–w129;
+three winding ranges were segmented twice and the two batches agree to 2.3–4.6
+µm, so the level reproduces. That matches the mask check's own outward trend
+without being circular — one asks whether a vertex is on the object, the other
+whether two volumes put the same sheet in the same place.
+
+What it does not resolve: the 45.5 µm side carries two candidate causes this
+data cannot separate — the coarse volume's resolution limit, and the quality of
+its own registration (its `transform.json` reproduces its landmarks to ≈356 µm,
+where the 2.4 µm one manages ≈12 µm). Pure misregistration would appear as a
+local shift and does not: inside 4 mm blocks the mean signed distance is ~28 µm
+against a ~77 µm within-block spread, so most of the disagreement is shape.
+
+No "fraction beyond half a sheet" is reported, though it would read better.
+Every sheet-spacing figure available here is itself a nearest-point distance on
+a ~900 µm grid with a discretisation floor of unknown size; dividing by it would
+launder that into a clean-looking percentage. The coarse voxel is a denominator
+that is actually known.
 
 ## Scroll 1, and one hypothesis eliminated
 
@@ -110,6 +165,11 @@ This settles a live question about the missing Scroll 1 title. The title sits
 in the innermost windings, and all three geometric checks pass there: the core
 *is* traced, its segments are 0.00–1.74 % outside the mask (thirteen of
 twenty-one are exactly 0.00 %), and the winding topology is sound at w010–w031.
+
+Check 3 agrees from its own direction: the innermost windings have the *lowest*
+cross-resolution disagreement of any range (34–44 µm at w010–w045, against
+60–64 µm at the outer edge), so the coarse and fine volumes place the core's
+sheets in the same spot.
 
 **The surfaces in the title region are geometrically healthy, so "no ink was
 detected there" is not explained by a bad segmentation.** That points effort at
