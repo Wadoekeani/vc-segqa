@@ -1,6 +1,6 @@
 # segqa — automated, label-free QA for published segmentations
 
-**Repo:** <fill in>  ·  Python + a browser viewer, no credentials, no bulk download
+**Repo:** https://github.com/Wadoekeani/vc-segqa  ·  Python + a browser viewer, no credentials, no bulk download
 
 ## The problem
 
