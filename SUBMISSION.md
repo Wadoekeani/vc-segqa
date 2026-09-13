@@ -184,6 +184,26 @@ detected there" is not explained by a bad segmentation.** That points effort at
 the ink-detection side rather than the tracing side. Ruling a hypothesis out is
 less satisfying than an answer, but it says where the effort should not go.
 
+### The core, asked directly
+
+The core has no meshes to check, so `core_structure.py` asks the 2.4 µm image
+instead, at twelve heights, with the traced band just outside w010 as the
+control on the same slice. Two quantities: how much of the area has structure
+(coverage), and whether that structure lines up into sheets (orientation
+coherence over 96 µm, which uses no axis).
+
+The sheets inside w010 are as well ordered as the traced ones — paired
+coherence difference −0.006, unchanged under three thresholds. In the lower half
+of the scan they are as plentiful too (40.6 % vs 38.7 %); in the upper half a
+third less (25.8 % vs 42.3 %), and higher slice numbers are the top of the
+scroll — the quantitative form of the Title Prize page's *"the top rows are
+physically missing"*. A longitudinal cut shows the core's sheets continuous but
+strongly inclined, one side of the core empty; cross-sections of the same
+region read as fragments, which was an oblique-cut artefact, withdrawn.
+
+So in the lower half of the scanned range the image does not explain why
+tracing stopped at w010. In the upper half the papyrus is genuinely sparser.
+
 ## Controls
 
 **Resolution.** Scrolls are sampled at different effective resolutions because
