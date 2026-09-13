@@ -193,11 +193,11 @@ the 7.91 µm volume, with `xres_control.py` as the control arm:
 | pair | segments | disagreement p50 | = voxels of the coarser volume |
 |---|---|---|---|
 | 45.5 µm vs 7.91 µm | 55 | **46.6 µm** | 1.02 |
-| 2.4 µm vs 7.91 µm | 5 | 3.8 µm | 0.48 |
+| 2.4 µm vs 7.91 µm | 9 | 3.7 µm | 0.47 |
 | 1.129 µm vs 2.4 µm | 1 | 0.34 µm | 0.14 |
 
 The control arm is what makes the first row readable. Between the fine volumes
-the same comparison, the same transforms and the same code return 3.8 µm and
+the same comparison, the same transforms and the same code return 3.7 µm and
 0.34 µm — twelve and a hundred times tighter. So the 46.6 µm is not the
 measurement, and not the transform file format. A papyrus sheet is only a few
 45.5 µm voxels thick, and a surface traced at that resolution turns out to be
@@ -237,8 +237,16 @@ Three of the ranges were segmented twice (2026-06-23 and 2026-07-01); the two
 batches agree to 2.3, 3.7 and 4.6 µm there, so the level is reproducible and not
 an artefact of one run.
 
-It also matches the mask check, which rises outward on the same data, and the
-agreement is not circular: one check asks whether a vertex is on the object, the
+The control arm samples all three groups, not only the one that scores best at
+45.5 µm. The two `5753_*` segments come back at 2.9 and 3.3 µm — *tighter* than
+the 2023 batch — and `w128-129`, the worst of the winding trend at 45.5 µm,
+returns 3.8 µm, the same as the innermost range. Both structures in the top row
+therefore live on the 45.5 µm side: neither that batch nor the outer windings
+are intrinsically hard to place, only hard to place *at 45.5 µm*. (w128-129 does
+carry a longer tail even here — p90 29 µm against 11–14 elsewhere.)
+
+The outward trend also matches the mask check, which rises outward on the same
+data, and the agreement is not circular: one check asks whether a vertex is on the object, the
 other asks whether two volumes place the same sheet in the same spot.
 
 **What this does not resolve.** The 45.5 µm side carries two candidate causes
@@ -313,6 +321,8 @@ published transforms:
 
 ```bash
 python3 xres_fetch.py 7.91um      # transforms + every 7.91 um mesh (~180 MB)
+python3 xres_fetch.py 2.4um       # the control arm's other side (~2 GB; a few
+python3 xres_fetch.py 1.129um     #   segments are enough - interrupt when bored)
 python3 xres.py 20230702185753    # one segment at three resolutions, with the control
 python3 xres_scan.py              # all of them -> xres_results.json
 python3 xres_control.py           # control arm: the fine volumes against each other

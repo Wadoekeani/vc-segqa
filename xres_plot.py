@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 rows = json.load(open(sys.argv[1] if len(sys.argv) > 1 else "xres_results.json"))
 out = sys.argv[2] if len(sys.argv) > 2 else "xres-agreement.png"
 VX = 45.532
-CONTROL, FINE24, FINE11 = 5.4, 3.8, 0.34      # xres.py / xres_control.py
+CONTROL, FINE24, FINE11 = 5.4, 3.7, 0.34      # xres.py / xres_control.py
 
 def wind(s):
     m = re.search(r"w(\d{3})-(\d{3})", s)
@@ -19,7 +19,7 @@ x = [a for a, _ in w]
 ax[0].plot(x, [r["p90"] for _, r in w], "^--", ms=4, lw=.8, color="tab:orange", label="p90")
 ax[0].plot(x, [r["p50"] for _, r in w], "o-", ms=4, lw=1.1, color="tab:blue", label="p50")
 for y, t, c in [(CONTROL, "measurement noise floor (5.4 µm)", "tab:green"),
-                (FINE24, "2.4 vs 7.91 µm, same method (3.8 µm)", "tab:purple")]:
+                (FINE24, "2.4 vs 7.91 µm, same method (3.7 µm)", "tab:purple")]:
     ax[0].axhline(y, color=c, lw=1, ls=":")
     ax[0].text(x[0], y * 1.12, t, fontsize=7, color=c)
 ax[0].axhline(VX, color="grey", lw=.8, ls="--", label="one 45.5 µm voxel")

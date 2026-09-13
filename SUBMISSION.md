@@ -114,7 +114,7 @@ volume:
 | pair | segments | disagreement p50 | = voxels of the coarser volume |
 |---|---|---|---|
 | 45.5 µm vs 7.91 µm | 55 | **46.6 µm** | 1.02 |
-| 2.4 µm vs 7.91 µm | 5 | 3.8 µm | 0.48 |
+| 2.4 µm vs 7.91 µm | 9 | 3.7 µm | 0.47 |
 | 1.129 µm vs 2.4 µm | 1 | 0.34 µm | 0.14 |
 
 The lower two rows are the control arm, and they are what make the top row
@@ -133,6 +133,14 @@ three winding ranges were segmented twice and the two batches agree to 2.3–4.6
 µm, so the level reproduces. That matches the mask check's own outward trend
 without being circular — one asks whether a vertex is on the object, the other
 whether two volumes put the same sheet in the same place.
+
+The control arm samples all three groups, not only the one that scores best at
+45.5 µm. The two `5753_*` segments come back at 2.9 and 3.3 µm — *tighter* than
+the 2023 batch — and `w128-129`, the worst of the winding trend at 45.5 µm,
+returns 3.8 µm, the same as the innermost range. Both structures in the top row
+therefore live on the 45.5 µm side: neither that batch nor the outer windings
+are intrinsically hard to place, only hard to place *at 45.5 µm*. (w128-129 does
+carry a longer tail even here — p90 29 µm against 11–14 elsewhere.)
 
 What it does not resolve: the 45.5 µm side carries two candidate causes this
 data cannot separate — the coarse volume's resolution limit, and the quality of
