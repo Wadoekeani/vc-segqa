@@ -54,7 +54,7 @@ Two more results from the same data:
 
 ## Corpus scan
 
-295 segments across 11 scrolls, 147 M vertices:
+299 segments across 11 scrolls, 147 M vertices:
 
 | scroll | segments | vertices | outside | over 5% |
 |---|---|---|---|---|
@@ -68,7 +68,7 @@ Two more results from the same data:
 | PHercParis4 | 81 | 4.1 M | 7.39 % | 27 |
 | PHerc0841 | 3 | 136 K | 11.82 % | 1 |
 | PHerc1667 | 20 | 106 M | 19.04 % | 17 |
-| PHerc1447 | 11 | 162 K | 52.42 % | 10 |
+| PHerc1447 | 15 | 255 K | 33.40 % | 10 |
 
 The distribution is sharply bimodal: four scrolls are effectively zero
 (0.00–0.25 %), two are badly off. That four scrolls can score `0.00 %` is the
@@ -94,7 +94,7 @@ blurred outward and so more forgiving. The ranking is unchanged at every level.
 
 The corpus scan spans a 4× resolution range, narrower than what was tested
 here, so the cross-scroll bias is bounded well below 1.29×. Against a spread of
-0.00 % to 52 % between scrolls — two orders of magnitude — it does not change
+0.00 % to 33 % between scrolls — two orders of magnitude — it does not change
 any conclusion. Treat absolute values as ±30 % and rankings as sound.
 
 ## Sheet switches: a second, independent check
@@ -161,7 +161,7 @@ python3 export_flags.py scan_plan.json            # all scrolls -> viewer/data/
 cd viewer && python3 -m http.server 8731
 ```
 
-All 11 scrolls and 295 segments, picked from a dropdown. Meshes stream straight
+All 11 scrolls and 299 segments, picked from a dropdown. Meshes stream straight
 from S3 (the bucket is CORS-open); only per-vertex flag files are served
 locally — subsampled to at most 128×128 per segment, so the whole set is 2.2 MB
 rather than the 106 MB the 2.4 µm meshes would otherwise need. Runtime state is
@@ -202,8 +202,11 @@ python3 section.py ~/.cache/segqa/PHercParis4 1 300 2000 3850 sections.png
 
 Things that cost time to discover, in case they save you some:
 
-- **`tifxyz` is trivial to read.** Three uncompressed single-strip float32
-  TIFFs. The whole reader is 12 lines (`l0.py`); no TIFF library needed.
+- **`tifxyz` is nearly trivial to read.** 376 of 380 planes are classic TIFF,
+  uncompressed, single strip — two lines. The other four are BigTIFF, tiled,
+  LZW with the floating-point predictor, which a classic-only reader fails on
+  with a struct error that names nothing. `l0.py` handles both and still has no
+  TIFF dependency.
 - **Meshes are registered to a specific volume.** The directory name says
   which: `<seg>-on-<volume-id>-<resolution>um.tifxyz`. Sampling a mesh against
   a different volume of the same scroll gives silent garbage.
