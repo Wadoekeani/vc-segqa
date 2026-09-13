@@ -1,0 +1,167 @@
+[
+ {
+  "scroll": "PHercParis4",
+  "segments": 81,
+  "meshes": 81,
+  "volume": "20260310170716-45.532um-11.0m-74keV-masked.zarr",
+  "base_um": 45.532,
+  "level": 3,
+  "shape": [
+   509,
+   283,
+   283
+  ],
+  "eff_um": 364.3,
+  "mb": 40.8
+ },
+ {
+  "scroll": "PHerc0172",
+  "segments": 53,
+  "meshes": 53,
+  "volume": "20241024131839-7.910um-53keV-masked.zarr",
+  "base_um": 7.91,
+  "level": 5,
+  "shape": [
+   651,
+   210,
+   285
+  ],
+  "eff_um": 253.1,
+  "mb": 39.0
+ },
+ {
+  "scroll": "PHerc0500P2",
+  "segments": 46,
+  "meshes": 38,
+  "volume": "20250820143440-9.362um-1.2m-113keV-masked.zarr",
+  "base_um": 9.362,
+  "level": 5,
+  "shape": [
+   221,
+   132,
+   132
+  ],
+  "eff_um": 299.6,
+  "mb": 3.9
+ },
+ {
+  "scroll": "PHerc0139",
+  "segments": 39,
+  "meshes": 38,
+  "volume": "20250728140407-9.362um-1.2m-113keV-masked.zarr",
+  "base_um": 9.362,
+  "level": 5,
+  "shape": [
+   656,
+   207,
+   207
+  ],
+  "eff_um": 299.6,
+  "mb": 28.1
+ },
+ {
+  "scroll": "PHerc0009B",
+  "segments": 20,
+  "meshes": 18,
+  "volume": "20250521125136-8.640um-1.2m-116keV-masked.zarr",
+  "base_um": 8.64,
+  "level": 5,
+  "shape": [
+   300,
+   245,
+   245
+  ],
+  "eff_um": 276.5,
+  "mb": 18.0
+ },
+ {
+  "scroll": "PHerc1667",
+  "segments": 20,
+  "meshes": 20,
+  "volume": "20251217075048-2.399um-0.2m-78keV-masked.zarr",
+  "base_um": 2.399,
+  "level": 5,
+  "shape": [
+   1159,
+   476,
+   476
+  ],
+  "eff_um": 76.8,
+  "mb": 262.6
+ },
+ {
+  "scroll": "PHerc0814",
+  "segments": 19,
+  "meshes": 19,
+  "volume": "20250804134230-9.362um-1.2m-113keV-masked.zarr",
+  "base_um": 9.362,
+  "level": 5,
+  "shape": [
+   606,
+   181,
+   181
+  ],
+  "eff_um": 299.6,
+  "mb": 19.9
+ },
+ {
+  "scroll": "PHerc1447",
+  "segments": 16,
+  "meshes": 15,
+  "volume": "20250521151220-8.640um-1.2m-116keV-masked.zarr",
+  "base_um": 8.64,
+  "level": 5,
+  "shape": [
+   760,
+   261,
+   261
+  ],
+  "eff_um": 276.5,
+  "mb": 51.8
+ },
+ {
+  "scroll": "PHerc0343P",
+  "segments": 8,
+  "meshes": 8,
+  "volume": "20250521134555-8.640um-1.2m-116keV-masked.zarr",
+  "base_um": 8.64,
+  "level": 5,
+  "shape": [
+   169,
+   159,
+   159
+  ],
+  "eff_um": 276.5,
+  "mb": 4.3
+ },
+ {
+  "scroll": "PHerc0800",
+  "segments": 6,
+  "meshes": 6,
+  "volume": "20250521135224-8.640um-1.2m-116keV-masked.zarr",
+  "base_um": 8.64,
+  "level": 5,
+  "shape": [
+   760,
+   309,
+   309
+  ],
+  "eff_um": 276.5,
+  "mb": 72.6
+ },
+ {
+  "scroll": "PHerc0841",
+  "segments": 3,
+  "meshes": 3,
+  "volume": "20250821151531-9.366um-1.2m-113keV-masked.zarr",
+  "base_um": 9.366,
+  "level": 5,
+  "shape": [
+   607,
+   241,
+   241
+  ],
+  "eff_um": 299.7,
+  "mb": 35.3
+ }
+]

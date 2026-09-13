@@ -1,0 +1,4 @@
+# downloaded meshes and volume chunks live in ~/.cache/segqa (see README)
+viewer/data/*/*.bin
+__pycache__/
+*.pyc

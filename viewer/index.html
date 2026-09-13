@@ -1,0 +1,263 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>segqa viewer</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; height:100vh; display:flex; background:#14161a; color:#dfe3e8;
+         font:13px/1.45 ui-sans-serif,system-ui,-apple-system,sans-serif; }
+  #side { width:310px; flex:none; display:flex; flex-direction:column;
+          border-right:1px solid #262a30; background:#181b20; }
+  #side h1 { font-size:13px; margin:0; padding:12px 14px; letter-spacing:.04em;
+             text-transform:uppercase; color:#9aa4b2; border-bottom:1px solid #262a30; }
+  #pick { padding:10px 14px 0; }
+  #pick select { width:100%; background:#232831; color:#dfe3e8; border:1px solid #333a45;
+                 border-radius:4px; padding:5px 7px; font:inherit; }
+  #meta { padding:10px 14px; font-size:11.5px; color:#8b95a3; border-bottom:1px solid #262a30; }
+  #meta b { color:#dfe3e8; font-weight:600; }
+  #ctl { padding:10px 14px; border-bottom:1px solid #262a30; display:grid; gap:7px; }
+  #ctl label { display:flex; align-items:center; gap:7px; cursor:pointer; color:#b6bfcb; }
+  #list { flex:1; overflow-y:auto; }
+  .seg { display:flex; align-items:center; gap:8px; padding:5px 14px; cursor:pointer;
+         border-left:3px solid transparent; }
+  .seg:hover { background:#1e222a; }
+  .seg.on { border-left-color:#6ea8fe; background:#1b2029; }
+  .seg .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+             font-family:ui-monospace,Menlo,monospace; font-size:11px; }
+  .seg .pc { font-variant-numeric:tabular-nums; font-size:11px; }
+  #view { flex:1; position:relative; }
+  #hud { position:absolute; left:12px; bottom:12px; font-size:11.5px; color:#8b95a3;
+         background:#181b20cc; padding:7px 10px; border-radius:5px; pointer-events:none; }
+  .key { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; }
+  button { background:#232831; color:#dfe3e8; border:1px solid #333a45; border-radius:4px;
+           padding:4px 9px; cursor:pointer; font:inherit; font-size:11.5px; }
+  button:hover { background:#2b313c; }
+</style>
+<div id="side">
+  <h1>segqa · mask escape</h1>
+  <div id="pick"><select id="scroll"></select></div>
+  <div id="meta">loading…</div>
+  <div id="ctl">
+    <label><input type="checkbox" id="onlyBad"> only segments over 5% outside</label>
+    <label><input type="checkbox" id="hideIn"> hide in-scroll vertices</label>
+    <div style="display:flex;gap:6px"><button id="all">load all</button>
+      <button id="none">clear</button><button id="worst">worst 5</button><button id="fit">fit</button></div>
+  </div>
+  <div id="list"></div>
+</div>
+<div id="view">
+  <div id="hud">
+    <span class="key" style="background:#c8b89a"></span>inside the scroll &nbsp;
+    <span class="key" style="background:#ff4d4d"></span>outside (escaped)<br>
+    drag orbit · wheel zoom · right-drag pan
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const view = document.getElementById("view");
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(devicePixelRatio);
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14161a);
+const camera = new THREE.PerspectiveCamera(45, 1, 1, 40000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+const dir = new THREE.DirectionalLight(0xffffff, 1.1); dir.position.set(1, 1, 1);
+scene.add(dir);
+
+function resize() {
+  const { clientWidth: w, clientHeight: h } = view;
+  renderer.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+
+/* ---- tifxyz: uncompressed single-strip float32 TIFF, so the pixel data is a
+   contiguous block we can view directly ------------------------------------ */
+async function loadPlane(url) {
+  const buf = await (await fetch(url)).arrayBuffer();
+  const dv = new DataView(buf);
+  const le = dv.getUint16(0, false) === 0x4949;
+  const ifd = dv.getUint32(4, le);
+  const n = dv.getUint16(ifd, le);
+  const t = {};
+  for (let i = 0; i < n; i++) {
+    const e = ifd + 2 + i * 12, tag = dv.getUint16(e, le), type = dv.getUint16(e + 2, le);
+    t[tag] = type === 3 ? dv.getUint16(e + 8, le) : dv.getUint32(e + 8, le);
+  }
+  if (t[259] !== 1 || t[258] !== 32 || t[339] !== 3)
+    throw new Error(`unexpected tifxyz encoding: comp=${t[259]} bits=${t[258]} fmt=${t[339]}`);
+  const w = t[256], h = t[257], off = t[273];
+  const data = off % 4 === 0 ? new Float32Array(buf, off, w * h)
+                             : new Float32Array(buf.slice(off, off + w * h * 4));
+  return { w, h, data };
+}
+
+const IN = new THREE.Color(0xc8b89a), OUT = new THREE.Color(0xff4d4d);
+
+/* Positions come full-resolution from S3; flags were exported subsampled.
+   Walk the source grid with the same stride so the two line up. */
+function buildMesh(pl, flags, r) {
+  const { stride: s, sw, sh } = r, W = pl.x.w;
+  const N = sw * sh;
+  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  for (let j = 0; j < sh; j++) for (let i = 0; i < sw; i++) {
+    const src = (j * s) * W + i * s, k = j * sw + i;
+    pos[k*3] = pl.x.data[src]; pos[k*3+1] = pl.y.data[src]; pos[k*3+2] = pl.z.data[src];
+    const c = flags[k] === 1 ? OUT : IN;
+    col[k*3] = c.r; col[k*3+1] = c.g; col[k*3+2] = c.b;
+  }
+  const idx = [];
+  const hideIn = document.getElementById("hideIn").checked;
+  for (let j = 0; j < sh - 1; j++) for (let i = 0; i < sw - 1; i++) {
+    const a = j*sw+i, b = a+1, c = a+sw, d = c+1;
+    if (flags[a] === 2 || flags[b] === 2 || flags[c] === 2 || flags[d] === 2) continue;
+    if (hideIn && flags[a] !== 1 && flags[b] !== 1 && flags[c] !== 1 && flags[d] !== 1) continue;
+    idx.push(a, c, b, b, c, d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, new THREE.MeshLambertMaterial({
+    vertexColors: true, side: THREE.DoubleSide }));
+}
+
+let scrolls = [], cur = null, index = null;
+const loaded = new Map();
+const cache = new Map();
+
+function fitView() {
+  if (!loaded.size) return;
+  const box = new THREE.Box3();
+  for (const m of loaded.values()) box.expandByObject(m);
+  const sph = box.getBoundingSphere(new THREE.Sphere());
+  const d = sph.radius / Math.sin(THREE.MathUtils.degToRad(camera.fov) / 2) * 1.05;
+  camera.up.set(0, 0, 1);                       // z is the scroll axis
+  camera.position.copy(sph.center).add(new THREE.Vector3(d * 0.82, -d * 0.5, d * 0.28));
+  camera.near = Math.max(1, d / 500); camera.far = d * 8;
+  camera.updateProjectionMatrix();
+  controls.target.copy(sph.center);
+  controls.update();
+}
+
+async function fetchSeg(r) {
+  const key = cur + "/" + r.segment;
+  if (cache.has(key)) return cache.get(key);
+  const [x, y, z, fb] = await Promise.all([
+    loadPlane(r.mesh + "x.tif"), loadPlane(r.mesh + "y.tif"), loadPlane(r.mesh + "z.tif"),
+    fetch(`data/${cur}/${r.segment}.bin`).then(b => b.arrayBuffer()),
+  ]);
+  const v = { x, y, z, flags: new Uint8Array(fb) };
+  if (v.flags.length !== r.sw * r.sh)
+    throw new Error(`flag/grid mismatch for ${r.segment}: ${v.flags.length} vs ${r.sw*r.sh}`);
+  cache.set(key, v);
+  return v;
+}
+
+async function toggle(r, on) {
+  const row = document.querySelector(`[data-seg="${CSS.escape(r.segment)}"]`);
+  if (!on) {
+    const m = loaded.get(r.segment);
+    if (m) { scene.remove(m); m.geometry.dispose(); loaded.delete(r.segment); }
+    row?.classList.remove("on");
+    return;
+  }
+  row?.classList.add("on");
+  try {
+    const v = await fetchSeg(r);
+    const mesh = buildMesh(v, v.flags, r);
+    scene.add(mesh);
+    loaded.set(r.segment, mesh);
+  } catch (e) {
+    console.error("load failed", r.segment, e);
+    row?.classList.remove("on");
+  }
+}
+
+function clearAll() {
+  for (const [k, m] of loaded) { scene.remove(m); m.geometry.dispose(); }
+  loaded.clear();
+}
+
+async function rebuild() {
+  const keys = [...loaded.keys()];
+  clearAll();
+  for (const k of keys) await toggle(index.segments.find(s => s.segment === k), true);
+  render();
+}
+
+function render() {
+  const list = document.getElementById("list");
+  const onlyBad = document.getElementById("onlyBad").checked;
+  list.innerHTML = "";
+  for (const r of index.segments) {
+    if (onlyBad && r.outside <= 0.05) continue;
+    const el = document.createElement("div");
+    el.className = "seg" + (loaded.has(r.segment) ? " on" : "");
+    el.dataset.seg = r.segment;
+    const pct = (r.outside * 100).toFixed(1);
+    const hue = r.outside > .05 ? "#ff6b6b" : r.outside > .01 ? "#e0b341" : "#6b7684";
+    el.innerHTML = `<span class="nm">${r.winding != null ? "w" + String(r.winding).padStart(3, "0") + " " : ""}`
+      + `${r.segment.replace(/^\d+-/, "")}</span><span class="pc" style="color:${hue}">${pct}%</span>`;
+    el.onclick = () => toggle(r, !loaded.has(r.segment)).then(render);
+    list.appendChild(el);
+  }
+}
+
+async function selectScroll(name, autoload = true) {
+  cur = name;
+  clearAll();
+  index = await (await fetch(`data/${name}/index.json`)).json();
+  document.getElementById("meta").innerHTML =
+    `<b>${index.scroll}</b> · ${index.segments.length} segments · ${(index.verts/1e6).toFixed(1)}M vertices<br>`
+    + `<b>${(index.outside*100).toFixed(2)}%</b> of vertices outside the scroll mask<br>`
+    + `sampled at ${index.um} um (L${index.level})`;
+  render();
+  if (autoload) {
+    const byBad = [...index.segments].sort((a, b) => b.outside - a.outside);
+    for (const r of byBad.slice(0, 3)) await toggle(r, true);
+    fitView(); render();
+  }
+}
+
+(async () => {
+  scrolls = await (await fetch("data/scrolls.json")).json();
+  scrolls.sort((a, b) => b.outside - a.outside);
+  const sel = document.getElementById("scroll");
+  sel.innerHTML = scrolls.map(s =>
+    `<option value="${s.scroll}">${s.scroll} — ${(s.outside*100).toFixed(1)}% (${s.segments})</option>`).join("");
+  sel.onchange = () => selectScroll(sel.value);
+
+  document.getElementById("worst").onclick = async () => {
+    const byBad = [...index.segments].sort((a, b) => b.outside - a.outside);
+    for (const r of byBad.slice(0, 5)) await toggle(r, true); fitView(); render();
+  };
+  document.getElementById("all").onclick = async () => {
+    for (const r of index.segments) await toggle(r, true); fitView(); render();
+  };
+  document.getElementById("none").onclick = () => { clearAll(); render(); };
+  document.getElementById("fit").onclick = fitView;
+  document.getElementById("onlyBad").onchange = render;
+  document.getElementById("hideIn").onchange = rebuild;
+
+  await selectScroll(sel.value);
+})();
+
+window.__segqa = { THREE, scene, camera, controls, renderer, loaded, cache,
+                   get index() { return index; }, get scrolls() { return scrolls; },
+                   selectScroll, fitView };
+resize();
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+</script>
