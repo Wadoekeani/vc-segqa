@@ -167,63 +167,8 @@ exactly 0.00 %), and the winding topology is sound at w010–w031. The surfaces
 are geometrically healthy, so "no ink was detected there" is not explained by a
 bad segmentation.
 
-### The core, asked directly
-
-Everything above measures meshes. The core has none — the innermost traced sheet
-is w010, at 0.5–1.6 mm from the axis depending on height — so the only thing
-left to ask is the image: is there anything in there a tracer could have
-followed? `core_structure.py` asks the 2.4 µm volume, ~2 MB per slice over HTTP
-Range, at twelve heights (36–177 mm along the axis), with the traced band just
-outside w010 as the control on the same slice:
-
-- **coverage** — fraction of the area whose gradient energy clears a global
-  threshold: how much of it has structure at all
-- **coherence** — |mean unit double-angle gradient| over a 96 µm window: do
-  those structures line up into sheets
-
-| | core (inside w010) | traced band (w010 outward) |
-|---|---|---|
-| coherence, median paired difference | −0.006 (range −0.087 … +0.046, n = 10) | — |
-| coverage, lower half of the scan | 40.6 % | 38.7 % |
-| coverage, upper half of the scan | **25.8 %** | 42.3 % |
-
-The sheets inside w010 line up exactly as well as the ones that were traced —
-the coherence difference stays at zero under three different thresholds
-(−0.006 / −0.006 / −0.007 at the 40th / 60th / 80th percentile). In the lower
-half there is also just as much papyrus. In the upper half there is a third
-less — and since the official FAQ puts higher slice numbers at the top of the
-scroll (all three `transform.json` files carry a positive z→z coefficient, so the
-2026 volumes keep that orientation), this is the quantitative form of the Title
-Prize page's *"the top rows are physically missing"*.
-
-![core structure](core-structure.png)
-
-A longitudinal cut through the axis, `core-longitudinal.png`, shows why the
-core looks the way it does in cross-section: its sheets are continuous over
-2 mm of height but strongly inclined, crossing the fitted axis, and one side of
-the core is empty. Cut obliquely, an inclined sheet looks like fragments; an
-earlier reading of those cross-sections as "broken papyrus" was wrong and is
-withdrawn.
-
-For the missing title — which by convention sits in the core, and in PHerc. 172
-was found exactly there in 2025 — this means: in the lower half of the scanned
-range the core holds as much papyrus, as well ordered, as the part that has been
-traced. Nothing in the image explains why tracing stopped at w010 there. The
-upper half is genuinely emptier.
-
-Limits, in order of how much they matter. Ten paired slices, five per half:
-sparse for a 141 mm object. Two-dimensional slices and one longitudinal cut.
-The bands come from a fitted axis: shifting it 60 voxels (144 µm) moves the
-paired coherence difference by 0.008 and the coverage difference by 2 points
-(median over four directions × ten slices), against effects of 0 and 15 points.
-The coverage gap in the upper half is −17 / −13.5 / −7 points at the 40th /
-60th / 80th percentile threshold — always negative, its size threshold-
-dependent. The traced band is w010's radius to 1.8× that, capped at the window
-edge; at two heights w010 already reaches the edge, so those have no control
-and enter the core numbers only. And "higher slices are the top" is the FAQ's
-statement about the 2023 volume, carried to the 2026 volumes only through their
-`transform.json` (whose `fixed_volume` names that 2023 volume, and whose z→z
-coefficients are positive).
+The untraced core itself — what the 2.4 µm image says about the sheets inside
+w010 — is a separate project: `scroll1-title`, next to this repo.
 
 ## Cross-resolution agreement: a third check
 
@@ -385,7 +330,6 @@ python3 xres.py 20230702185753    # one segment at three resolutions, with the c
 python3 xres_scan.py              # all of them -> xres_results.json
 python3 xres_control.py           # control arm: the fine volumes against each other
 python3 xres_plot.py              # -> xres-agreement.png
-python3 core_structure.py         # the untraced core, asked directly -> core-structure.png
 ```
 
 ## Notes on the data
