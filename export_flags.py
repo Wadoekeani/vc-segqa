@@ -72,6 +72,8 @@ if __name__ == "__main__":
                  for r in m["segments"]) / 1e6
         summary.append(dict(scroll=p["scroll"], segments=len(m["segments"]),
                             verts=m["verts"], outside=m["outside"], mb=round(mb, 2)))
+        # rewrite after every scroll so the viewer works on partial output
+        json.dump(summary, open(f"{out}/scrolls.json", "w"), indent=1)
         print(f"   -- {len(m['segments'])} segments, {mb:.2f} MB of flags")
     json.dump(summary, open(f"{out}/scrolls.json", "w"), indent=1)
     print(f"\n{len(summary)} scrolls -> {out}/scrolls.json "

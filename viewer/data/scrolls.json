@@ -1,0 +1,79 @@
+[
+ {
+  "scroll": "PHercParis4",
+  "segments": 81,
+  "verts": 4090802,
+  "outside": 0.073881111821105,
+  "mb": 0.38
+ },
+ {
+  "scroll": "PHerc0172",
+  "segments": 53,
+  "verts": 28579231,
+  "outside": 0.0013510510482244956,
+  "mb": 0.59
+ },
+ {
+  "scroll": "PHerc0500P2",
+  "segments": 38,
+  "verts": 531414,
+  "outside": 0.05445471891971231,
+  "mb": 0.18
+ },
+ {
+  "scroll": "PHerc0139",
+  "segments": 38,
+  "verts": 4410716,
+  "outside": 0.0025272540784761475,
+  "mb": 0.4
+ },
+ {
+  "scroll": "PHerc0009B",
+  "segments": 18,
+  "verts": 1190722,
+  "outside": 0.053855559903991025,
+  "mb": 0.18
+ },
+ {
+  "scroll": "PHerc1667",
+  "segments": 20,
+  "verts": 106013939,
+  "outside": 0.1903648255160107,
+  "mb": 0.22
+ },
+ {
+  "scroll": "PHerc0814",
+  "segments": 19,
+  "verts": 1370051,
+  "outside": 0.0004985215878824949,
+  "mb": 0.05
+ },
+ {
+  "scroll": "PHerc1447",
+  "segments": 11,
+  "verts": 161615,
+  "outside": 0.5242397054728831,
+  "mb": 0.07
+ },
+ {
+  "scroll": "PHerc0343P",
+  "segments": 8,
+  "verts": 111650,
+  "outside": 0.03256605463502015,
+  "mb": 0.04
+ },
+ {
+  "scroll": "PHerc0800",
+  "segments": 6,
+  "verts": 32868,
+  "outside": 0.0,
+  "mb": 0.05
+ },
+ {
+  "scroll": "PHerc0841",
+  "segments": 3,
+  "verts": 135892,
+  "outside": 0.11817472698907956,
+  "mb": 0.03
+ }
+]

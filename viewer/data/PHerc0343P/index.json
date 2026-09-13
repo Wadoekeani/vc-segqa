@@ -1,0 +1,106 @@
+{
+ "scroll": "PHerc0343P",
+ "volume": "20250521134555-8.640um-1.2m-116keV-masked.zarr",
+ "level": 5,
+ "um": 276.5,
+ "segments": [
+  {
+   "segment": "20250511003658-tifxyz",
+   "w": 103,
+   "h": 172,
+   "stride": 2,
+   "sw": 52,
+   "sh": 86,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0343P/segments/20250511003658-tifxyz/mesh/20250511003658-on-20250521134555-8.64um.tifxyz/",
+   "winding": null,
+   "verts": 14274,
+   "outside": 0.19447947316799777
+  },
+  {
+   "segment": "20250902170435--5_b2",
+   "w": 121,
+   "h": 164,
+   "stride": 2,
+   "sw": 61,
+   "sh": 82,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0343P/segments/20250902170435--5_b2/mesh/20250902170435-on-20250521134555-8.64um.tifxyz/",
+   "winding": null,
+   "verts": 13504,
+   "outside": 0.008738151658767773
+  },
+  {
+   "segment": "20250902170441--4_b2",
+   "w": 126,
+   "h": 165,
+   "stride": 2,
+   "sw": 63,
+   "sh": 83,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0343P/segments/20250902170441--4_b2/mesh/20250902170441-on-20250521134555-8.64um.tifxyz/",
+   "winding": null,
+   "verts": 13575,
+   "outside": 0.004125230202578269
+  },
+  {
+   "segment": "20250902170447--3_b2",
+   "w": 130,
+   "h": 178,
+   "stride": 2,
+   "sw": 65,
+   "sh": 89,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0343P/segments/20250902170447--3_b2/mesh/20250902170447-on-20250521134555-8.64um.tifxyz/",
+   "winding": null,
+   "verts": 15995,
+   "outside": 0.02369490465770553
+  },
+  {
+   "segment": "20250902171202--2_b2",
+   "w": 116,
+   "h": 172,
+   "stride": 2,
+   "sw": 58,
+   "sh": 86,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0343P/segments/20250902171202--2_b2/mesh/20250902171202-on-20250521134555-8.64um.tifxyz/",
+   "winding": null,
+   "verts": 13975,
+   "outside": 0.01073345259391771
+  },
+  {
+   "segment": "20250902171204--1_b2",
+   "w": 117,
+   "h": 167,
+   "stride": 2,
+   "sw": 59,
+   "sh": 84,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0343P/segments/20250902171204--1_b2/mesh/20250902171204-on-20250521134555-8.64um.tifxyz/",
+   "winding": null,
+   "verts": 13919,
+   "outside": 0.005388318126302177
+  },
+  {
+   "segment": "20250904233748-0_b2",
+   "w": 125,
+   "h": 181,
+   "stride": 2,
+   "sw": 63,
+   "sh": 91,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0343P/segments/20250904233748-0_b2/mesh/20250904233748-on-20250521134555-8.64um.tifxyz/",
+   "winding": null,
+   "verts": 15076,
+   "outside": 0.0054391085168479705
+  },
+  {
+   "segment": "20250905172054-1_b2",
+   "w": 114,
+   "h": 151,
+   "stride": 2,
+   "sw": 57,
+   "sh": 76,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0343P/segments/20250905172054-1_b2/mesh/20250905172054-on-20250521134555-8.64um.tifxyz/",
+   "winding": null,
+   "verts": 11332,
+   "outside": 0.0
+  }
+ ],
+ "outside": 0.03256605463502015,
+ "verts": 111650
+}

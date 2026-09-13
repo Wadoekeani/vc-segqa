@@ -97,6 +97,56 @@ here, so the cross-scroll bias is bounded well below 1.29×. Against a spread of
 0.00 % to 52 % between scrolls — two orders of magnitude — it does not change
 any conclusion. Treat absolute values as ±30 % and rankings as sound.
 
+## Sheet switches: a second, independent check
+
+The mask check cannot see a tracer that slips onto the neighbouring sheet — the
+surface is still inside the scroll. Neither can distortion, because the
+parameterisation stays locally isometric across a switch. The signal does not
+exist inside a single segment.
+
+It exists *between* segments. Names carry official winding numbers, and two
+segments one winding apart must sit one papyrus thickness apart everywhere they
+overlap. That expectation is free, exactly like the mask:
+
+- gap collapses to ~0 → both traced the same sheet; one of them jumped
+- gap roughly doubles → a winding was skipped
+- which segment moved is identified by checking its *other* neighbour
+
+`sheetswitch.py` over the 92 adjacent-winding pairs that exist:
+
+| scroll | pairs | flagged | ratio range |
+|---|---|---|---|
+| PHerc0172 | 43 | 0 | 0.64 – 1.46 |
+| PHerc0139 | 35 | **2** | 0.25 – 2.09 |
+| PHerc1667 | 14 | 0 | 0.85 – 1.21 |
+
+PHerc0139 w46 has jumped onto w45's sheet:
+
+```
+w44/45   1.28   normal
+w45/46   0.25   <-- coincident
+w46/47   2.09   <-- double gap
+w47/48   1.11   normal
+```
+
+Self-consistent, and it identifies the culprit: had w45 been the one that
+moved, w44/45 would read double, and it does not.
+
+**The two checks are independent, and that is the point.** PHerc1667 is the
+worst scroll by mask escape (19 %) yet is perfectly clean here, with the
+tightest ratio range of the three — its problem is drifting off the object at
+the outer edge, not confusing sheets. PHerc0139 is among the cleanest by mask
+(0.25 %) and is the only one carrying a sheet switch. A scroll can look
+flawless under one check while the real defect is only visible to the other.
+
+The measured spacing lands at 147 / 151 / 164 µm on the three scrolls —
+independently computed, from volumes whose voxel sizes differ by 4×, with no
+physical constant supplied anywhere.
+
+Two pairs were skipped for insufficient overlap (reported, not silently
+dropped). Scroll 1 cannot use this check yet: its segments are named by winding
+*ranges* (`w010-027`), so no adjacent single-winding pairs exist.
+
 ## Viewer
 
 ![viewer](viewer-screenshot.png)
@@ -185,9 +235,10 @@ unvalidated. Recorded, not relied on.
 
 ## Limitations
 
-- **It only asks whether a surface is on the scroll.** A tracer that slips onto
-  the neighbouring sheet is still inside the object, so this check cannot see
-  it. Sheet switching remains the open problem.
+- **Sheet switching needs adjacent windings.** The mask check alone cannot see
+  it; `sheetswitch.py` can, but only where segments carry single winding
+  numbers. Scroll 1 names its segments by winding range, so it is not covered
+  yet.
 - **"Outside the mask" is not always "the tracer was wrong."** The other
   reading is that the mask excludes frayed, detached outer layers that really
   are papyrus. Both matter, but only the first is a bug, and this tool does not

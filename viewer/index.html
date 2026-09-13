@@ -130,18 +130,29 @@ function buildMesh(pl, flags, r) {
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
   g.setIndex(idx);
   g.computeVertexNormals();
-  return new THREE.Mesh(g, new THREE.MeshLambertMaterial({
+  const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({
     vertexColors: true, side: THREE.DoubleSide }));
+  // Cells with no data hold a -1 sentinel; including them would inflate the
+  // framing box, so keep a box over real vertices for fitView to use.
+  const box = new THREE.Box3(), v = new THREE.Vector3();
+  for (let k = 0; k < sw * sh; k++) {
+    if (flags[k] === 2) continue;
+    box.expandByPoint(v.fromArray(pos, k * 3));
+  }
+  mesh.userData.box = box.isEmpty() ? null : box;
+  return mesh;
 }
 
 let scrolls = [], cur = null, index = null;
+let gen = 0;   // bumped on every scroll change; stale loads check it
 const loaded = new Map();
 const cache = new Map();
 
 function fitView() {
   if (!loaded.size) return;
   const box = new THREE.Box3();
-  for (const m of loaded.values()) box.expandByObject(m);
+  for (const m of loaded.values())
+    m.userData.box ? box.union(m.userData.box) : box.expandByObject(m);
   const sph = box.getBoundingSphere(new THREE.Sphere());
   const d = sph.radius / Math.sin(THREE.MathUtils.degToRad(camera.fov) / 2) * 1.05;
   camera.up.set(0, 0, 1);                       // z is the scroll axis
@@ -167,6 +178,7 @@ async function fetchSeg(r) {
 }
 
 async function toggle(r, on) {
+  const mine = gen;
   const row = document.querySelector(`[data-seg="${CSS.escape(r.segment)}"]`);
   if (!on) {
     const m = loaded.get(r.segment);
@@ -177,9 +189,12 @@ async function toggle(r, on) {
   row?.classList.add("on");
   try {
     const v = await fetchSeg(r);
+    if (mine !== gen) return;            // scroll changed while this was in flight
     const mesh = buildMesh(v, v.flags, r);
     scene.add(mesh);
+    const first = loaded.size === 0;
     loaded.set(r.segment, mesh);
+    if (first) fitView();          // show something immediately, refit later
   } catch (e) {
     console.error("load failed", r.segment, e);
     row?.classList.remove("on");
@@ -217,6 +232,7 @@ function render() {
 }
 
 async function selectScroll(name, autoload = true) {
+  gen++;
   cur = name;
   clearAll();
   index = await (await fetch(`data/${name}/index.json`)).json();
@@ -227,13 +243,29 @@ async function selectScroll(name, autoload = true) {
   render();
   if (autoload) {
     const byBad = [...index.segments].sort((a, b) => b.outside - a.outside);
-    for (const r of byBad.slice(0, 3)) await toggle(r, true);
-    fitView(); render();
+    const mine = gen;
+    for (const r of byBad.slice(0, 3)) {
+      if (mine !== gen) return;
+      await toggle(r, true);
+      render();                    // list reflects each load as it arrives
+    }
+    fitView();
   }
 }
 
+function fail(msg) {
+  document.getElementById("meta").innerHTML =
+    `<span style="color:#ff6b6b">${msg}</span>`;
+  console.error(msg);
+}
+
 (async () => {
-  scrolls = await (await fetch("data/scrolls.json")).json();
+  const r = await fetch("data/scrolls.json").catch(() => null);
+  if (!r || !r.ok) return fail(
+    "data/scrolls.json not found — run <code>export_flags.py</code> first, "
+    + "and serve this directory over http (file:// will not work).");
+  scrolls = await r.json();
+  if (!scrolls.length) return fail("scrolls.json is empty");
   scrolls.sort((a, b) => b.outside - a.outside);
   const sel = document.getElementById("scroll");
   sel.innerHTML = scrolls.map(s =>
@@ -253,7 +285,7 @@ async function selectScroll(name, autoload = true) {
   document.getElementById("hideIn").onchange = rebuild;
 
   await selectScroll(sel.value);
-})();
+})().catch(e => fail("startup failed: " + e.message));
 
 window.__segqa = { THREE, scene, camera, controls, renderer, loaded, cache,
                    get index() { return index; }, get scrolls() { return scrolls; },

@@ -1,0 +1,46 @@
+{
+ "scroll": "PHerc0841",
+ "volume": "20250821151531-9.366um-1.2m-113keV-masked.zarr",
+ "level": 5,
+ "um": 299.7,
+ "segments": [
+  {
+   "segment": "20260220213127-w00",
+   "w": 238,
+   "h": 211,
+   "stride": 2,
+   "sw": 119,
+   "sh": 106,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0841/segments/20260220213127-w00/mesh/20260220213127-on-20250821151531-9.366um.tifxyz/",
+   "winding": null,
+   "verts": 36829,
+   "outside": 0.0
+  },
+  {
+   "segment": "20260220214732-auto_grown_20260220144552896",
+   "w": 236,
+   "h": 232,
+   "stride": 2,
+   "sw": 118,
+   "sh": 116,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0841/segments/20260220214732-auto_grown_20260220144552896/mesh/20260220214732-on-20250821151531-9.366um.tifxyz/",
+   "winding": null,
+   "verts": 37027,
+   "outside": 0.0
+  },
+  {
+   "segment": "20260221022814-auto_grown_20260220174252405",
+   "w": 613,
+   "h": 1078,
+   "stride": 9,
+   "sw": 69,
+   "sh": 120,
+   "mesh": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0841/segments/20260221022814-auto_grown_20260220174252405/mesh/20260221022814-on-20250821151531-9.366um.tifxyz/",
+   "winding": null,
+   "verts": 62036,
+   "outside": 0.2588658198465407
+  }
+ ],
+ "outside": 0.11817472698907956,
+ "verts": 135892
+}
