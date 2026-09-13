@@ -168,7 +168,7 @@ are geometrically healthy, so "no ink was detected there" is not explained by a
 bad segmentation.
 
 The untraced core itself — what the 2.4 µm image says about the sheets inside
-w010 — is a separate project: `scroll1-title`, next to this repo.
+w010 — is a separate project: https://github.com/Wadoekeani/scroll1-title
 
 ## Cross-resolution agreement: a third check
 
