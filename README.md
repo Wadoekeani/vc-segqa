@@ -211,8 +211,19 @@ range the core holds as much papyrus, as well ordered, as the part that has been
 traced. Nothing in the image explains why tracing stopped at w010 there. The
 upper half is genuinely emptier.
 
-Limits: two-dimensional slices; the band averages depend on the fitted axis
-(coherence itself does not); one longitudinal cut.
+Limits, in order of how much they matter. Ten paired slices, five per half:
+sparse for a 141 mm object. Two-dimensional slices and one longitudinal cut.
+The bands come from a fitted axis: shifting it 60 voxels (144 µm) moves the
+paired coherence difference by 0.008 and the coverage difference by 2 points
+(median over four directions × ten slices), against effects of 0 and 15 points.
+The coverage gap in the upper half is −17 / −13.5 / −7 points at the 40th /
+60th / 80th percentile threshold — always negative, its size threshold-
+dependent. The traced band is w010's radius to 1.8× that, capped at the window
+edge; at two heights w010 already reaches the edge, so those have no control
+and enter the core numbers only. And "higher slices are the top" is the FAQ's
+statement about the 2023 volume, carried to the 2026 volumes only through their
+`transform.json` (whose `fixed_volume` names that 2023 volume, and whose z→z
+coefficients are positive).
 
 ## Cross-resolution agreement: a third check
 

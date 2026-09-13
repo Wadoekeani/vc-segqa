@@ -12,8 +12,15 @@ the control on the same slice:
 
 Coherence deliberately uses no centre. A concentricity measure was tried first
 and swung from 0.41 to 0.87 when the assumed axis moved 60 voxels, which at
-small radius it always might; the two measures kept here are insensitive to
-that (see the sensitivity block in __main__).
+small radius it always might. The two measures kept here only use the axis to
+draw the bands; __main__ ends with two sensitivity blocks - a different
+"structure" threshold, and the axis shifted by 60 voxels - so the size of that
+dependence is printed rather than asserted.
+
+The traced band is w010's inner radius out to 1.8x that radius, capped at the
+window edge. Where w010 already sits at the window edge (two of the twelve
+heights) there is no band and the control is NaN; those heights count in the
+core numbers only.
 
 Needs the 45.5 um w010-027 meshes (for the axis) and the 45.5 um and 2.4 um
 transform.json files (xres_fetch.py). Pulls ~2 MB per height from the 2.4 um
@@ -112,15 +119,30 @@ if __name__ == "__main__":
     print(f"coverage, lower half (z45<=2200): core {np.mean(cc[lo]):.1%} vs traced {np.mean(ct[lo]):.1%}")
     print(f"coverage, upper half (z45> 2200): core {np.mean(cc[ok & ~lo]):.1%} vs traced {np.mean(ct[ok & ~lo]):.1%}")
 
-    # sensitivity: the conclusion has to survive a different "this is papyrus"
-    # threshold, or it is a threshold artefact
+    # sensitivity 1: the conclusion has to survive a different "this is papyrus"
+    # threshold, or it is a threshold artefact - for coverage as well as coherence
+    geoms = core_geometry([r["z45"] for r in rows])
     for pct in (40, 80):
-        d = []
-        for g, r in zip(core_geometry([r["z45"] for r in rows]), rows):
+        dcoh, dcov_lo, dcov_hi = [], [], []
+        for g in geoms:
             img, (y0, x0) = fetch(g, cache_dir)
-            (_, a), (_, b) = measure(img, y0, x0, g["cx"], g["cy"], g["rin"], pct)
-            if np.isfinite(a) and np.isfinite(b): d.append(a - b)
-        print(f"  gate at {pct}th pct: coherence core-traced median {np.median(d):+.3f}")
+            (ci, a), (co, b) = measure(img, y0, x0, g["cx"], g["cy"], g["rin"], pct)
+            if not (np.isfinite(a) and np.isfinite(b)): continue
+            dcoh.append(a - b); (dcov_lo if g["z45"] <= 2200 else dcov_hi).append(ci - co)
+        print(f"  gate at {pct}th pct: coherence core-traced median {np.median(dcoh):+.3f} | "
+              f"coverage core-traced lower {100*np.median(dcov_lo):+.1f} pts, upper {100*np.median(dcov_hi):+.1f} pts")
+    # sensitivity 2: the bands come from a fitted axis; shift it 60 voxels (144 um)
+    # in four directions and see how far the paired differences move
+    dcoh, dcov = [], []
+    for g in geoms:
+        img, (y0, x0) = fetch(g, cache_dir)
+        (ci0, a0), (co0, b0) = measure(img, y0, x0, g["cx"], g["cy"], g["rin"])
+        if not (np.isfinite(b0)): continue
+        for dx, dy in ((60, 0), (-60, 0), (0, 60), (0, -60)):
+            (ci, a), (co, b) = measure(img, y0, x0, g["cx"] + dx, g["cy"] + dy, g["rin"])
+            if np.isfinite(b): dcoh.append((a - b) - (a0 - b0)); dcov.append((ci - co) - (ci0 - co0))
+    print(f"  axis shifted 60 vx: paired coherence difference moves by median {np.median(np.abs(dcoh)):.3f}, "
+          f"coverage difference by median {100*np.median(np.abs(dcov)):.1f} pts  (n={len(dcoh)})")
 
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
     mm = z * 45.532 / 1000

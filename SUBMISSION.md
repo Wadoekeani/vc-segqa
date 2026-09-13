@@ -203,6 +203,9 @@ region read as fragments, which was an oblique-cut artefact, withdrawn.
 
 So in the lower half of the scanned range the image does not explain why
 tracing stopped at w010. In the upper half the papyrus is genuinely sparser.
+Ten paired slices, 2-D, one longitudinal cut; shifting the fitted axis 60 voxels
+moves the paired differences by 0.008 and 2 points against effects of 0 and
+15. Limits are spelled out in the README.
 
 ## Controls
 
